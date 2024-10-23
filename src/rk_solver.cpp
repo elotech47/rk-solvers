@@ -133,35 +133,6 @@ bool RungeKutta::step() {
     return success;
 }
 
-// void RungeKutta::integrate(double t_target) {
-//     if (status != "running") {
-//         throw std::runtime_error("Solver is not running. Current status: " + status);
-//     }
-
-//     if (std::abs(t_target - t) < 10 * std::numeric_limits<double>::epsilon()) {
-//         return;
-//     }
-
-//     try {
-//         while ((t_target - t) * direction > 0) {
-//             if (!step()) {
-//                 status = "failed";
-//                 throw std::runtime_error("Integration step failed");
-//             }
-            
-//             if (std::abs(t - t_target) < 10 * std::numeric_limits<double>::epsilon()) {
-//                 break;
-//             }
-//         }
-
-//         if ((t_bound - t) * direction <= 0) {
-//             status = "finished";
-//         }
-//     } catch (const std::exception& e) {
-//         status = "failed";
-//         throw std::runtime_error("Integration failed: " + std::string(e.what()));
-//     }
-// }
 
 void RungeKutta::integrate(double t_target) {
     if (status != "running") {
@@ -186,27 +157,6 @@ void RungeKutta::integrate(double t_target) {
     }
 }
 
-// double RungeKutta::_estimate_error(const Vector& K, const Vector& E) {
-//     Vector scale(n);
-//     for (size_t i = 0; i < n; ++i) {
-//         scale[i] = atol + std::max(std::abs(y[i]), std::abs(y[i] + K[i])) * rtol;
-//     }
-//     Vector error(n);
-//     for (size_t i = 0; i < n; ++i) {
-//         error[i] = std::abs(K[i] * E[i]) / scale[i];
-//     }
-//     return norm(error);
-// }
-
-// double RungeKutta::_estimate_error(const Vector& y_new, const Vector& f_new, const Vector& K) {
-//     double error_norm = 0.0;
-//     for (size_t i = 0; i < n; ++i) {
-//         double sc = atol + std::max(std::abs(y[i]), std::abs(y_new[i])) * rtol;
-//         double error = std::abs(h_abs * (K[0][i] * E[0] + K[1][i] * E[1] + K[2][i] * E[2] + f_new[i] * E[3])) / sc;
-//         error_norm += error * error;
-//     }
-//     return std::sqrt(error_norm / n);
-// }
 
 void RungeKutta::_adjust_step(double error_norm, double safety) {
     if (error_norm == 0.0) {
