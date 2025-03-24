@@ -1,19 +1,60 @@
 #ifndef RK_SOLVER_HPP
 #define RK_SOLVER_HPP
 
-#include "rk_step.hpp"
-#include "dense_output.hpp"
-#include <limits>
+#include <vector>
+#include <functional>
+#include <memory>
 #include <string>
+#include <utility>
+#include "dense_output.hpp"
 
 namespace rk_solver {
 
+// Forward declarations
+class RungeKutta;
+class DenseOutput;
+
+// Define basic types if not already defined in dense_output.hpp
+#ifndef RK_SOLVER_TYPES_DEFINED
+#define RK_SOLVER_TYPES_DEFINED
+using Vector = std::vector<double>;
+using Matrix = std::vector<Vector>;
+using OdeFunction = std::function<Vector(double, const Vector&)>;
+#endif
+
+using EventFunction = std::function<double(double t, const Vector& y)>;
+
+struct Event {
+    EventFunction function;
+    bool terminal = false;
+    double direction = 0.0;
+};
+
+class OdeSolution {
+public:
+    // Modified constructor to take ownership of interpolants
+    OdeSolution(std::vector<double> ts, 
+                std::vector<std::unique_ptr<DenseOutput>>&& interpolants)
+        : ts_(std::move(ts)), interpolants_(std::move(interpolants)) {}
+
+    // Delete copy constructor and assignment
+    OdeSolution(const OdeSolution&) = delete;
+    OdeSolution& operator=(const OdeSolution&) = delete;
+
+    // Allow moving
+    OdeSolution(OdeSolution&&) = default;
+    OdeSolution& operator=(OdeSolution&&) = default;
+
+    Vector operator()(double t) const;
+
+private:
+    std::vector<double> ts_;
+    std::vector<std::unique_ptr<DenseOutput>> interpolants_;
+};
+
 /**
  * @brief Base class for ODE solvers.
- * 
- * This class defines the interface for all ODE solvers in the library.
  */
-
 class OdeSolver {
 public:
     OdeSolver(OdeFunction fun, double t0, const Vector& y0, double t_bound, 
@@ -23,6 +64,7 @@ public:
 
     virtual bool step() = 0;
     virtual void integrate(double t) = 0;
+    virtual void compute_dense_output() = 0;  // Renamed from dense_output()
 
     double get_t() const { return t; }
     const Vector& get_y() const { return y; }
@@ -48,22 +90,7 @@ protected:
 
 /**
  * @brief Base class for Runge-Kutta methods.
- * 
- * This class implements common functionality for Runge-Kutta methods.
- * It provides adaptive step size control and dense output capabilities.
- * 
- * @param fun The right-hand side of the ODE system. It should be a callable that takes
- *            (t, y) as arguments and returns dy/dt.
- * @param t0 The initial time.
- * @param y0 The initial state (should be a std::vector<double>).
- * @param t_bound The boundary time - the integration won't continue beyond it.
- * @param max_step Maximum allowed step size (default is infinity).
- * @param rtol Relative tolerance for error control (default is 1e-3).
- * @param atol Absolute tolerance for error control (default is 1e-6).
- * @param vectorized Whether the fun is implemented in a vectorized fashion (default is false).
- * @param first_step Initial step size (default is 0.0, which means the algorithm will guess).
  */
-
 class RungeKutta : public OdeSolver {
 public:
     RungeKutta(OdeFunction fun, double t0, const Vector& y0, double t_bound,
@@ -75,13 +102,13 @@ public:
 
     bool step() override;
     void integrate(double t) override;
+    void compute_dense_output() override;
     std::unique_ptr<DenseOutput> get_dense_output() const { 
-        return dense_output ? std::make_unique<RkDenseOutput>(
-            dynamic_cast<RkDenseOutput&>(*dense_output)) : nullptr;
+        return dense_output_sol ? std::make_unique<RkDenseOutput>(
+            dynamic_cast<RkDenseOutput&>(*dense_output_sol)) : nullptr;
     }
 
 protected:
-    
     virtual bool _step_impl() = 0;
     virtual void _dense_output_impl() = 0;
     virtual double _estimate_error(const Vector& y_new, const Vector& f_new, const Matrix& K) = 0;
@@ -93,16 +120,35 @@ protected:
     Vector f;
     double h_abs;
     Matrix K;
-    std::unique_ptr<DenseOutput> dense_output;
+    std::unique_ptr<DenseOutput> dense_output_sol;
 
     static constexpr double MIN_FACTOR = 0.2;
     static constexpr double MAX_FACTOR = 10;
     static constexpr double SAFETY = 0.9;
 
-    // double _estimate_error(const Vector& K, const Vector& E);
-    // virtual double _estimate_error(const Vector& y_new, const Vector& f_new, const Matrix& K) = 0;
     void _adjust_step(double error_norm, double safety = SAFETY);
 };
+
+// struct SolveIvpResult {
+//     std::vector<double> t;
+//     std::vector<std::vector<double>> y;
+//     std::unique_ptr<OdeSolution> sol;  // Using unique_ptr for OdeSolution
+//     std::vector<std::vector<double>> t_events;
+//     size_t nfev = 0;
+//     size_t njev = 0;
+//     size_t nlu = 0;
+//     int status = 0;
+//     std::string message;
+//     bool success = false;
+// };
+
+// // Modified solve_ivp implementation to handle move semantics
+// SolveIvpResult solve_ivp(
+//     RungeKutta* solver,
+//     std::vector<double> t_eval,
+//     std::vector<Event> events = {},
+//     bool dense_output = false
+// );
 
 } // namespace rk_solver
 

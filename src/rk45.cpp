@@ -85,7 +85,7 @@ void RK45::_dense_output_impl() {
             }
         }
         
-        dense_output = std::make_unique<RkDenseOutput>(t_old, t, y_old, Q);
+        dense_output_sol = std::make_unique<RkDenseOutput>(t_old, t, y_old, Q);
     } catch (const std::exception& e) {
         throw std::runtime_error("Exception in _dense_output_impl: " + std::string(e.what()));
     }

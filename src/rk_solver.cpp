@@ -158,6 +158,10 @@ void RungeKutta::integrate(double t_target) {
 }
 
 
+void RungeKutta::compute_dense_output() {  // Renamed from dense_output()
+    _dense_output_impl();
+}
+
 void RungeKutta::_adjust_step(double error_norm, double safety) {
     if (error_norm == 0.0) {
         h_abs *= MAX_FACTOR;
